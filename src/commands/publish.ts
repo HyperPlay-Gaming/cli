@@ -49,11 +49,10 @@ export default class Publish extends Command {
     }
   ]
 
-  async provider(network: string, privateKey: string): Promise<ethers.Signer> {
-    if (Publish.provider) return Publish.provider;
-
+  async getWallet(network: string, privateKey: string) {
     const provider = new ethers.providers.JsonRpcProvider(network);
-    return new ethers.Wallet(privateKey, provider);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    return wallet;
   }
 
 /* eslint-disable-next-line */
@@ -91,14 +90,17 @@ export default class Publish extends Command {
     const privateKey = flags['private-key'] || await select();
     const metaTx = flags['meta-tx'];
 
-    const wallet = new ethers.Wallet(privateKey);
     const cookieJar = Publish.cookieJar ?? new CookieJar();
 
-    const provider = await this.provider(flags.network, privateKey);
+    const wallet = await this.getWallet(flags.network, privateKey);
+    const provider = Publish.provider ? Publish.provider : wallet.provider;
+    if (provider === undefined){
+      this.error('provider is undefined')
+    }
     const valist = await create(provider, { metaTx });
 
-    const address = await provider.getAddress();
-    const chainId = await provider.getChainId();
+    const address = await wallet.getAddress();
+    const chainId = await wallet.getChainId();
 
     const accountID = valist.generateID(chainId, config.account);
     const projectID = valist.generateID(accountID, config.project);
