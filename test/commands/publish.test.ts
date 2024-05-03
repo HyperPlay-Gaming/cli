@@ -1,23 +1,15 @@
 import Publish from '../../src/commands/publish';
 import { ethers } from 'ethers';
 import { expect } from 'chai';
-import { contracts, create, AccountMeta, ProjectMeta, Client } from '@valist/sdk';
+import { contracts, AccountMeta, ProjectMeta, Client, generateID, create } from '@valist/sdk';
 import nock from 'nock'
 import { CookieJar } from 'tough-cookie';
-import ganache from 'ganache'
 
-const web3 = ganache.provider({ wallet: { deterministic: true }, 
-    logging: {
-        logger: {
-            log: () => {} // don't do anything to prevent console spamming
-        }
-    } 
-});
-
-// @ts-expect-error type mismatch
-const provider = new ethers.providers.Web3Provider(web3);
+const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:8545/');
 const signer = provider.getSigner();
 
+const publisherPrivateKey = '4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d'
+const walletPassedToPublishCommand = new ethers.Wallet(publisherPrivateKey)
 const Registry = new ethers.ContractFactory(contracts.registryABI, contracts.registryBytecode, signer);
 const License = new ethers.ContractFactory(contracts.licenseABI, contracts.licenseBytecode, signer);
 
@@ -35,9 +27,18 @@ describe('publish CLI command', () => {
         const license = await License.deploy(registry.address);
         await license.deployed();
 
-        valist = await create(provider, { metaTx: false });
+        const optionsToPassToPublish = { subgraphUrl: 'http://localhost:8000/subgraphs/name/valist/dev', registryAddress: registry.address, licenseAddress: license.address };
+        Publish.options = optionsToPassToPublish;
+        valist = await create(provider, { metaTx: false, ...optionsToPassToPublish });
         const address = await signer.getAddress();
-        members = [address];
+        members = [address, walletPassedToPublishCommand.address];
+
+        // send eth to walletPassedToPublishCommand
+        const txn = {
+            to: walletPassedToPublishCommand.address,
+            value: ethers.utils.parseEther('0.5')
+        }
+        await signer.sendTransaction(txn)
 
         const account = new AccountMeta();
         account.name = 'valist';
@@ -52,11 +53,11 @@ describe('publish CLI command', () => {
         project.description = 'Valist CLI';
         project.external_url = 'https://github.com/valist-io/valist-js';
 
-        const accountID = valist.generateID(1337, 'valist');
+        const accountID = generateID(31337, 'valist');
         const createProjectTx = await valist.createProject(accountID, 'cli', project, members);
         await createProjectTx.wait();
 
-        projectID = valist.generateID(accountID, 'cli');
+        projectID = generateID(accountID, 'cli');
     })
 
     async function runPublishCommandWithMockData(releaseVersion: string, publishArgs: string[]){
@@ -80,7 +81,6 @@ describe('publish CLI command', () => {
         cookieJar.setCookie('next-auth.csrf-token=someCookieValue', url)
 
         Publish.cookieJar = cookieJar
-        Publish.provider = signer;
         try {
             await Publish.run(publishArgs);
         /* eslint-disable-next-line */
@@ -96,9 +96,10 @@ describe('publish CLI command', () => {
 
     it('should create a release with the publish command and the hyperplay.yml file', async function () {
         const publishArgs = [
-            '--private-key=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d',
+            `--private-key=${publisherPrivateKey}`,
             '--no-meta-tx',
-            '--yml-path=./test/mock_data/hyperplay.yml'
+            '--yml-path=./test/mock_data/hyperplay.yml',
+            '--network=http://127.0.0.1:8545/'
         ]
         const releaseMeta = await runPublishCommandWithMockData('v0.0.2', publishArgs)
         const platformKeys = Object.keys(releaseMeta.platforms)
@@ -110,9 +111,10 @@ describe('publish CLI command', () => {
 
     it('should create a release with custom keys and some files and folders not zipped', async function(){
         const publishArgs = [
-            '--private-key=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d',
+            `--private-key=${publisherPrivateKey}`,
             '--no-meta-tx',
-            '--yml-path=./test/mock_data/hyperplay_publish.yml'
+            '--yml-path=./test/mock_data/hyperplay_publish.yml',
+            '--network=http://127.0.0.1:8545/'
         ]
         const releaseMeta = await runPublishCommandWithMockData('v0.0.3', publishArgs)
         console.log('release meta ', releaseMeta)

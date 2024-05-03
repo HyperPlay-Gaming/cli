@@ -12,7 +12,7 @@ jobs:
       pkg_manager: 'npm'
       install: 'npm install'
       name: 'test'
-      command_one: 'npm run test'
+      command_one: 'npm run startLocalHardhat & npm run test'
       command_one_name: 'Run Tests'
       checkout_recursive: false
     secrets:

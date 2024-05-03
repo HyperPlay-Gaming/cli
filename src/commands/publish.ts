@@ -1,6 +1,6 @@
 import { Command, CliUx } from '@oclif/core';
 import { ethers } from 'ethers';
-import { create } from '@valist/sdk';
+import { create, Options } from '@valist/sdk';
 import * as flags from '../flags';
 import { select } from '../keys';
 import { CookieJar } from 'tough-cookie';
@@ -12,8 +12,8 @@ import { parseYml } from '../yml';
 import { FlagOutput } from '@oclif/core/lib/interfaces';
 
 export default class Publish extends Command {
-  static provider?: ethers.Signer;
   static cookieJar?: CookieJar
+  static options: Partial<Options> = {}
 
   static description = 'Publish a release'
 
@@ -93,11 +93,11 @@ export default class Publish extends Command {
     const cookieJar = Publish.cookieJar ?? new CookieJar();
 
     const wallet = await this.getWallet(flags.network, privateKey);
-    const provider = Publish.provider ? Publish.provider : wallet.provider;
+    const provider = wallet.provider;
     if (provider === undefined){
       this.error('provider is undefined')
     }
-    const valist = await create(provider, { metaTx });
+    const valist = await create(provider, { metaTx, ...Publish.options });
 
     const address = await wallet.getAddress();
     const chainId = await wallet.getChainId();
