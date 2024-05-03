@@ -2,7 +2,6 @@ import { Command, CliUx } from '@oclif/core';
 import { ethers } from 'ethers';
 import { create, Options } from '@valist/sdk';
 import * as flags from '../flags';
-import { select } from '../keys';
 import { CookieJar } from 'tough-cookie';
 import axios from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
@@ -87,7 +86,7 @@ export default class Publish extends Command {
     const fullReleaseName = `${config.account}/${config.project}/${config.release}`;
     console.log('Publishing', { platforms: config.platforms }, `as ${fullReleaseName}`);
 
-    const privateKey = flags['private-key'] || await select();
+    const privateKey = flags['private-key'];
     const metaTx = flags['meta-tx'];
 
     const cookieJar = Publish.cookieJar ?? new CookieJar();

@@ -32,7 +32,7 @@ $ npm install -g @hyperplay/cli
 $ hyperplay COMMAND
 running command...
 $ hyperplay (--version)
-@hyperplay/cli/2.11.4 win32-x64 node-v20.8.0
+@hyperplay/cli/2.11.10 win32-x64 node-v20.8.0
 $ hyperplay --help [COMMAND]
 USAGE
   $ hyperplay COMMAND
@@ -90,8 +90,6 @@ HYPERPLAY_PRIVATE_KEY=0x1234 hyperplay publish
 # Commands
 <!-- commands -->
 * [`hyperplay help [COMMANDS]`](#hyperplay-help-commands)
-* [`hyperplay import`](#hyperplay-import)
-* [`hyperplay keygen`](#hyperplay-keygen)
 * [`hyperplay publish [ACCOUNT] [PROJECT] [RELEASE]`](#hyperplay-publish-account-project-release)
 
 ## `hyperplay help [COMMANDS]`
@@ -112,35 +110,6 @@ DESCRIPTION
   Display help for hyperplay.
 ```
 
-## `hyperplay import`
-
-Import an account
-
-```
-USAGE
-  $ hyperplay import
-
-DESCRIPTION
-  Import an account
-
-EXAMPLES
-  $ hyperplay import
-```
-
-## `hyperplay keygen`
-
-Generate a new account
-
-```
-USAGE
-  $ hyperplay keygen
-
-DESCRIPTION
-  Generate a new account
-
-EXAMPLES
-  $ hyperplay keygen
-```
 
 ## `hyperplay publish [ACCOUNT] [PROJECT] [RELEASE]`
 
