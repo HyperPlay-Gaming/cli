@@ -198,8 +198,8 @@ It is also possible to add the public key directly to your project through the [
 
 To get the account name, navigate to the [HyperPlay Dev Portal](https://developers.hyperplay.xyz) and on the project card, you can find your account name in the "Published by: <account_name" text.
 
-![image](./public/account_name.png)
+![image](https://raw.githubusercontent.com/HyperPlay-Gaming/cli/main/public/account_name.png)
 
 To get the project name, click the project card. The project name is in the text input field with the "Game Name" label, shown below.
 
-![image](./public/project_name.png)
+![image](https://raw.githubusercontent.com/HyperPlay-Gaming/cli/main/public/project_name.png)
