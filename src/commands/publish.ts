@@ -97,7 +97,8 @@ export default class Publish extends Command {
     if (provider === undefined){
       this.error('provider is undefined')
     }
-    const valist = await create(provider, { metaTx, ...Publish.options });
+    
+    const valist = await create(wallet, { metaTx, ...Publish.options });
 
     const address = await wallet.getAddress();
     const chainId = await wallet.getChainId();

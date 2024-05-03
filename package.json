@@ -1,6 +1,6 @@
 {
   "name": "@hyperplay/cli",
-  "version": "2.11.4",
+  "version": "2.11.5",
   "description": "Hyperplay CLI",
   "author": "HyperPlay Labs, Inc.",
   "bin": {
