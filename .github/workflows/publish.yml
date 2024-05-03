@@ -13,7 +13,7 @@ jobs:
     with:
       node_version: '18'
       pkg_manager: 'npm'
-      install: 'npm install --package-lock=false'
+      install: 'npm install'
       build: 'npm run build'
       publish: 'npm publish'
       pkg_manager_add_dev_dep: 'npm install --save-dev'
