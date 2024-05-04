@@ -99,7 +99,8 @@ describe('publish CLI command', () => {
             `--private-key=${publisherPrivateKey}`,
             '--no-meta-tx',
             '--yml-path=./test/mock_data/hyperplay.yml',
-            '--network=http://127.0.0.1:8545/'
+            '--network=http://127.0.0.1:8545/',
+            '--skip_hyperplay_publish'
         ]
         const releaseMeta = await runPublishCommandWithMockData('v0.0.2', publishArgs)
         const platformKeys = Object.keys(releaseMeta.platforms)
@@ -114,7 +115,8 @@ describe('publish CLI command', () => {
             `--private-key=${publisherPrivateKey}`,
             '--no-meta-tx',
             '--yml-path=./test/mock_data/hyperplay_publish.yml',
-            '--network=http://127.0.0.1:8545/'
+            '--network=http://127.0.0.1:8545/',
+            '--skip_hyperplay_publish'
         ]
         const releaseMeta = await runPublishCommandWithMockData('v0.0.3', publishArgs)
         console.log('release meta ', releaseMeta)
