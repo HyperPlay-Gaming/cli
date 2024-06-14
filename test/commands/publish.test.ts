@@ -4,39 +4,48 @@ import { expect } from 'chai';
 import { contracts, AccountMeta, ProjectMeta, Client, generateID, create } from '@valist/sdk';
 import nock from 'nock'
 import { CookieJar } from 'tough-cookie';
+import { BrowserProvider } from 'ethers';
 
-const provider = new ethers.providers.JsonRpcProvider('http://127.0.0.1:8545/');
-const signer = provider.getSigner();
-
-const publisherPrivateKey = '4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d'
-const walletPassedToPublishCommand = new ethers.Wallet(publisherPrivateKey)
-const Registry = new ethers.ContractFactory(contracts.registryABI, contracts.registryBytecode, signer);
-const License = new ethers.ContractFactory(contracts.licenseABI, contracts.licenseBytecode, signer);
+const url = 'https://developers.hyperplay.xyz'
+const publisherPrivateKey = '4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d';
+let provider: ethers.JsonRpcProvider;
+let signer: ethers.JsonRpcSigner;
+let walletPassedToPublishCommand: ethers.Wallet;
 
 // publishing unzipped folder is not supported only zipped or unzipped files 
 describe('publish CLI command', () => {
     let valist: Client
     let members: string[] = []
     let projectID: string
-    const url = 'https://developers.hyperplay.xyz'
+    let Registry: ethers.ContractFactory<unknown[], ethers.BaseContract>
+    let License: ethers.ContractFactory<unknown[], ethers.BaseContract>
 
-    before(async ()=>{
-        const registry = await Registry.deploy(ethers.constants.AddressZero);
-        await registry.deployed();
+    before(async () => {
+        provider = new ethers.JsonRpcProvider('http://127.0.0.1:8545/');
+        signer = await provider.getSigner();
+        walletPassedToPublishCommand = new ethers.Wallet(publisherPrivateKey, provider);
+        console.log({ abi: contracts.registryABI[0].inputs, signer })
+        Registry = new ethers.ContractFactory(contracts.registryABI, contracts.registryBytecode, signer);
+        License = new ethers.ContractFactory(contracts.licenseABI, contracts.licenseBytecode, signer);
 
-        const license = await License.deploy(registry.address);
-        await license.deployed();
+        const registry = await Registry.deploy(ethers.ZeroAddress);
+        await registry.waitForDeployment()
+        const registryAddress = await registry.getAddress();
 
-        const optionsToPassToPublish = { subgraphUrl: 'http://localhost:8000/subgraphs/name/valist/dev', registryAddress: registry.address, licenseAddress: license.address };
+        const license = await License.deploy(registry.target);
+        await license.waitForDeployment()
+        const licenseAddress = await license.getAddress();
+
+        const optionsToPassToPublish = { subgraphUrl: 'http://localhost:8000/subgraphs/name/valist/dev', registryAddress, licenseAddress };
         Publish.options = optionsToPassToPublish;
-        valist = await create(provider, { metaTx: false, ...optionsToPassToPublish });
+        valist = await create(provider as unknown as BrowserProvider, { metaTx: false, ...optionsToPassToPublish });
         const address = await signer.getAddress();
         members = [address, walletPassedToPublishCommand.address];
 
         // send eth to walletPassedToPublishCommand
         const txn = {
             to: walletPassedToPublishCommand.address,
-            value: ethers.utils.parseEther('0.5')
+            value: ethers.parseEther('0.5')
         }
         await signer.sendTransaction(txn)
 
@@ -60,12 +69,12 @@ describe('publish CLI command', () => {
         projectID = generateID(accountID, 'cli');
     })
 
-    async function runPublishCommandWithMockData(releaseVersion: string, publishArgs: string[]){
+    async function runPublishCommandWithMockData(releaseVersion: string, publishArgs: string[]) {
         nock(url)
             .get('/api/auth/session')
             .reply(200, {})
             .get('/api/auth/csrf')
-            .reply(200, {data: {csrfToken: 'someCookieValue'}})
+            .reply(200, { data: { csrfToken: 'someCookieValue' } })
             .post('/api/v1/reviews/release')
             .reply(200, {})
             .post('/api/auth/callback/ethereum')
@@ -83,7 +92,7 @@ describe('publish CLI command', () => {
         Publish.cookieJar = cookieJar
         try {
             await Publish.run(publishArgs);
-        /* eslint-disable-next-line */
+            /* eslint-disable-next-line */
         } catch (e: any) {
             if (e.oclif === undefined || e.oclif.exit !== 0) throw e;
         }
@@ -109,7 +118,7 @@ describe('publish CLI command', () => {
         expect(platformKeys.includes('windows_amd64')).true
     });
 
-    it('should create a release with custom keys and some files and folders not zipped', async function(){
+    it('should create a release with custom keys and some files and folders not zipped', async function () {
         const publishArgs = [
             `--private-key=${publisherPrivateKey}`,
             '--no-meta-tx',
