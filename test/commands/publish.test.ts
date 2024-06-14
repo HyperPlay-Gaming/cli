@@ -24,7 +24,6 @@ describe('publish CLI command', () => {
         provider = new ethers.JsonRpcProvider('http://127.0.0.1:8545/');
         signer = await provider.getSigner();
         walletPassedToPublishCommand = new ethers.Wallet(publisherPrivateKey, provider);
-        console.log({ abi: contracts.registryABI[0].inputs, signer })
         Registry = new ethers.ContractFactory(contracts.registryABI, contracts.registryBytecode, signer);
         License = new ethers.ContractFactory(contracts.licenseABI, contracts.licenseBytecode, signer);
 
