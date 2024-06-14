@@ -50,15 +50,15 @@ export default class Publish extends Command {
   ]
 
   async getWallet(network: string, privateKey: string) {
-    const provider = new ethers.providers.JsonRpcProvider(network);
+    const provider = new ethers.JsonRpcProvider(network);
     const wallet = new ethers.Wallet(privateKey, provider);
     return wallet;
   }
 
-/* eslint-disable-next-line */
-  async parseConfig(args: {[name: string]: any;}, flags: FlagOutput){
+  /* eslint-disable-next-line */
+  async parseConfig(args: { [name: string]: any; }, flags: FlagOutput) {
     const parsed = parseYml(args, flags)
-    if (parsed === undefined){
+    if (parsed === undefined) {
       this.error('Account, project, and release were not supplied and hyperplay.yml does not exist')
     }
 
@@ -68,8 +68,8 @@ export default class Publish extends Command {
     if (!config.project) this.error('invalid project name');
     if (!config.release) this.error('invalid release name');
     if (!config.platforms) this.error('no platforms configured');
-    
-    for (const [key, value] of Object.entries(config.platforms)){
+
+    for (const [key, value] of Object.entries(config.platforms)) {
       if (!value.executable) this.error(`No executable path found for platform ${key}`)
     }
 
@@ -94,14 +94,15 @@ export default class Publish extends Command {
 
     const wallet = await this.getWallet(flags.network, privateKey);
     const provider = wallet.provider;
-    if (provider === undefined){
-      this.error('provider is undefined')
-    }
-    
+    if (provider === undefined) this.error('provider is undefined')
+
     const valist = await create(wallet, { metaTx, chainId: 137, ...Publish.options });
 
     const address = await wallet.getAddress();
-    const chainId = await wallet.getChainId();
+    const chainId = (await provider?.getNetwork())?.chainId;
+    if (provider === undefined || !chainId) {
+      this.error('provider is undefined')
+    }
 
     const accountID = valist.generateID(chainId, config.account);
     const projectID = valist.generateID(accountID, config.project);
@@ -131,14 +132,14 @@ export default class Publish extends Command {
     CliUx.ux.action.stop();
 
     // Publish to HyperPlay
-    if (!flags['skip_hyperplay_publish']){
+    if (!flags['skip_hyperplay_publish']) {
       const apiURL = 'https://developers.hyperplay.xyz'
       const apiClient = wrapper(axios.create({ jar: cookieJar, withCredentials: true, baseURL: apiURL }));
       await loginAndPublish(
-        apiClient, 
-        cookieJar, 
-        wallet, 
-        apiURL, 
+        apiClient,
+        cookieJar,
+        wallet,
+        apiURL,
         projectID,
         fullReleaseName,
         flags['channel']

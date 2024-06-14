@@ -1,6 +1,6 @@
 import { Command, CliUx } from '@oclif/core';
 import keytar from 'keytar';
-import { Wordlist, ethers } from 'ethers';
+import { ethers } from 'ethers';
 import * as fs from 'node:fs';
 import * as inquirer from 'inquirer';
 
@@ -20,18 +20,16 @@ export default class Import extends Command {
     return new ethers.Wallet(privateKey);
   }
 
-  async importJsonWallet(): Promise<ethers.Wallet> {
+  async importJsonWallet(): Promise<ethers.HDNodeWallet | ethers.Wallet> {
     const jsonPath = await CliUx.ux.prompt('Where is the JSON wallet located?');
     const json = await fs.promises.readFile(jsonPath, 'utf-8');
     const password = await CliUx.ux.prompt('What is the JSON wallet password?', { type: 'hide' });
     return await ethers.Wallet.fromEncryptedJson(json, password);
   }
 
-  async importMnemonic(): Promise<ethers.Wallet> {
+  async importMnemonic(): Promise<ethers.HDNodeWallet> {
     const mnemonic = await CliUx.ux.prompt('What is the mnemonic phrase?');
-    const path = await CliUx.ux.prompt('What is the derivation path?', { default: `m/44'/60'/0'/0/0` });
-    const wordlist = await CliUx.ux.prompt('What is the wordlist language?', { default: 'en' });
-    return ethers.Wallet.fromMnemonic(mnemonic, path, wordlist as unknown as Wordlist);
+    return ethers.Wallet.fromPhrase(mnemonic);
   }
 
   public async run(): Promise<void> {
@@ -42,7 +40,7 @@ export default class Import extends Command {
       choices: [PRIVATE_KEY_TYPE, JSON_WALLET_TYPE, MNEMONIC_TYPE],
     }]);
 
-    let wallet: ethers.Wallet;
+    let wallet: ethers.Wallet | ethers.HDNodeWallet;
     if (source === PRIVATE_KEY_TYPE) {
       wallet = await this.importPrivateKey();
     } else if (source === JSON_WALLET_TYPE) {
