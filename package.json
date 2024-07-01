@@ -20,7 +20,7 @@
   "dependencies": {
     "@oclif/core": "^1.8.0",
     "@oclif/plugin-help": "^5",
-    "@valist/sdk": "2.9.8",
+    "@valist/sdk": "file:../valist-sdk",
     "archiver": "^7.0.0",
     "axios": "^1.6.7",
     "axios-cookiejar-support": "^5.0.0",
