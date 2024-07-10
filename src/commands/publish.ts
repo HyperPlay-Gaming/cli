@@ -6,7 +6,7 @@ import { select } from '../keys';
 import { CookieJar } from 'tough-cookie';
 import axios from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
-import { loginAndPublish } from '../api';
+import { login, publish } from '../api';
 import { uploadRelease } from '../releases';
 import { parseYml } from '../yml';
 import { FlagOutput } from '@oclif/core/lib/interfaces';
@@ -120,8 +120,16 @@ export default class Publish extends Command {
       this.error(`release ${config.release} exists`);
     }
 
-    const release = await uploadRelease(valist, config);
-    CliUx.ux.log(`successfully uploaded files to IPFS: ${release.external_url}`);
+    const apiURL = 'https://developers.hyperplay.xyz'
+    const apiClient = wrapper(axios.create({ jar: cookieJar, withCredentials: true, baseURL: apiURL }));
+    await login(
+      apiClient,
+      cookieJar,
+      wallet
+    );
+
+    const release = await uploadRelease(apiClient, config);
+    CliUx.ux.log(`Successfully uploaded files to HyperPlay: ${release.external_url}`);
 
     CliUx.ux.action.start('publishing release');
     const tx = await valist.createRelease(projectID, config.release, release);
@@ -133,13 +141,8 @@ export default class Publish extends Command {
 
     // Publish to HyperPlay
     if (!flags['skip_hyperplay_publish']) {
-      const apiURL = 'https://developers.hyperplay.xyz'
-      const apiClient = wrapper(axios.create({ jar: cookieJar, withCredentials: true, baseURL: apiURL }));
-      await loginAndPublish(
+      await publish(
         apiClient,
-        cookieJar,
-        wallet,
-        apiURL,
         projectID,
         fullReleaseName,
         flags['channel']
