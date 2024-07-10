@@ -154,7 +154,6 @@ export default class Publish extends Command {
     if (!flags['skip_hyperplay_publish'])
       releaseText += `https://developers.hyperplay.xyz/${config.account}/${config.project}/settings\n`
     releaseText += release.external_url + '\n'
-    releaseText += `ipfs://${release.external_url.replace('https://gateway.valist.io/ipfs/', '')}\n`
     CliUx.ux.log(releaseText);
 
     this.exit(0);
