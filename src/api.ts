@@ -20,23 +20,23 @@ async function logCookiesAndCheckCsrf(cookieJar: CookieJar, baseUrl: string): Pr
   return csrfToken;
 }
 
-export async function loginAndPublish(client: AxiosInstance, cookieJar: CookieJar, signer: ethers.Wallet, baseUrl: string, projectID: string, path: string, targetChannel: string) {
-  await client.get(`${baseUrl}/api/auth/session`);
+export async function login(client: AxiosInstance, cookieJar: CookieJar, signer: ethers.Wallet) {
+  await client.get("/api/auth/session");
 
-  const hasCsrfToken = await logCookiesAndCheckCsrf(cookieJar, baseUrl);
+  const hasCsrfToken = await logCookiesAndCheckCsrf(cookieJar, client.defaults.baseURL as string);
   if (!hasCsrfToken) {
     throw new Error("CSRF token not found in the cookie jar.");
   }
 
-  const csrfResponse = await client.get(`${baseUrl}/api/auth/csrf`);
+  const csrfResponse = await client.get("/api/auth/csrf");
   const csrfToken = csrfResponse.data.csrfToken;
 
-  CliUx.ux.action.start('Signing into HyperPlay API with:', signer.address);
+  CliUx.ux.action.start(`Signing into HyperPlay API with ${signer.address}:`);
   const siweMessage = new SiweMessage({
-    domain: new URL(baseUrl).host,
+    domain: new URL(client.defaults.baseURL as string).host,
     address: signer.address,
     statement: "Sign in with Ethereum to HyperPlay",
-    uri: baseUrl,
+    uri: client.defaults.baseURL as string,
     version: "1",
     chainId: 137,
     nonce: csrfToken,
@@ -51,24 +51,26 @@ export async function loginAndPublish(client: AxiosInstance, cookieJar: CookieJa
     redirect: 'false',
     signature: signature,
     csrfToken: csrfToken,
-    callbackUrl: `${baseUrl}/`,
+    callbackUrl: "/",
     json: 'true',
   });
 
-  await client.post(`${baseUrl}/api/auth/callback/ethereum?`, formData, {
+  await client.post("/api/auth/callback/ethereum?", formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
   });
   CliUx.ux.action.stop();
+}
 
+export async function publish(client: AxiosInstance, projectID: string, path: string, targetChannel: string) {
   CliUx.ux.log('Fetching listing release branches');
-  const channels = (await client.get<{ channel_id: number, channel_name: string }[]>(`${baseUrl}/api/v1/channels?project_id=${projectID}`)).data;
+  const channels = (await client.get<{ channel_id: number, channel_name: string }[]>(`/api/v1/channels?project_id=${projectID}`)).data;
 
   const releaseChannel = channels.find((channel) => targetChannel === channel.channel_name);
 
   CliUx.ux.log('Submitting release for review');
-  await client.post(`${baseUrl}/api/v1/reviews/release`, {
+  await client.post("/api/v1/reviews/release", {
     path,
     channel_id: releaseChannel?.channel_id,
   });
