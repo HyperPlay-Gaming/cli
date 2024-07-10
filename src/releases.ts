@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { CliUx } from '@oclif/core';
-import { Client, ReleaseMeta } from "@valist/sdk";
+import { ReleaseMeta } from "@valist/sdk";
 import { SupportedPlatform } from '@valist/sdk/dist/typesShared';
 import { zipDirectory } from './zip';
 import { ReleaseConfig } from './types';
 import { getZipName } from './utils/getZipName';
-import { DesktopPlatform, getSignedUploadUrls, uploadFileS3 } from '@valist/sdk/dist/s3';
+import { DesktopPlatform, WebPlatform, getSignedUploadUrls, uploadFileS3 } from '@valist/sdk/dist/s3';
+import fs from "fs";
+import { AxiosInstance } from 'axios';
 
 interface PlatformEntry {
   platform: string
@@ -16,7 +18,7 @@ interface PlatformEntry {
 
 const baseGateWayURL = `https://gateway-b3.valist.io`;
 
-export async function uploadRelease(valist: Client, config: ReleaseConfig) {
+export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig) {
   const updatedPlatformEntries: PlatformEntry[] = await Promise.all(Object.entries(config.platforms).map(async ([platform, platformConfig]) => {
     const installScript = platformConfig.installScript;
     const executable = platformConfig.executable;
@@ -40,33 +42,54 @@ export async function uploadRelease(valist: Client, config: ReleaseConfig) {
   };
   CliUx.ux.action.start('uploading files');
 
+  const platformsToSign: Partial<Record<SupportedPlatform, DesktopPlatform | WebPlatform>> = {};
+  for (const platformEntry of updatedPlatformEntries) {
+    const platformKey = platformEntry.platform as SupportedPlatform;
+    const { path, executable } = platformEntry;
+    const file = fs.createReadStream(path);
+
+    platformsToSign[platformKey] = {
+      platform: platformKey,
+      files: file,
+      executable,
+    };
+  }
+
   CliUx.ux.action.start(`generating presigned urls`);
   const urls = await getSignedUploadUrls(
     config.account,
     config.project,
     config.release,
-    {},
+    platformsToSign,
+    {
+      client,
+    },
   );
+  CliUx.ux.action.stop();
 
-  for (const entry of updatedPlatformEntries) {
-    const preSignedUrl = urls.find((data) => entry.platform === data.platformKey);
+  const signedPlatformEntries = Object.entries(platformsToSign);
+  for (const [name, platform] of signedPlatformEntries) {
+    const preSignedUrl = urls.find((data) => data.platformKey === name);
     if (!preSignedUrl) throw "no pre-signed url found for platform";
 
     const { uploadId, partUrls, key } = preSignedUrl;
-    const fileData = (entry as unknown as File[])[0];
+    const fileData = platform.files as fs.ReadStream;
 
     let location: string = '';
     const progressIterator = uploadFileS3(
       fileData,
-      entry.platform,
+      name,
       uploadId,
       key,
       partUrls,
+      {
+        client,
+      }
     );
 
     for await (const progressUpdate of progressIterator) {
       if (typeof progressUpdate === 'number') {
-        CliUx.ux.action.start(`Upload progress ${progressUpdate}`);
+        CliUx.ux.log(`Upload progress ${progressUpdate}`);
       } else {
         location = progressUpdate;
       }
@@ -74,17 +97,16 @@ export async function uploadRelease(valist: Client, config: ReleaseConfig) {
 
     if (location === '') throw ('no location returned');
 
-    const { files: _, ...rest } = entry as unknown as DesktopPlatform;
-    const downloadSize = fileData.size.toString();
+    const { files, ...rest } = platform as DesktopPlatform;
+    const downloadSize = fileData.bytesRead.toString();
 
-    meta.platforms[entry.platform as SupportedPlatform] = {
+    meta.platforms[name as SupportedPlatform] = {
       ...rest,
       name: preSignedUrl.fileName,
       external_url: `${baseGateWayURL}${location}`,
       downloadSize: downloadSize,
       installSize: downloadSize,
     };
-    CliUx.ux.action.stop(`Successfully uploaded releases`);
   }
   CliUx.ux.action.stop();
   return meta;
