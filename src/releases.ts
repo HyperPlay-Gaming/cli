@@ -98,7 +98,10 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     if (location === '') throw ('no location returned');
 
     const { files, ...rest } = platform as DesktopPlatform;
-    const fileStat = await fs.promises.stat(config.platforms[name].path);
+    const updatedPlatform = updatedPlatformEntries.find((item) => item.platform === name);
+    if (!updatedPlatform) throw ("updated platform path not found");
+
+    const fileStat = await fs.promises.stat(updatedPlatform.path);
     const downloadSize = fileStat.size.toString();
 
     meta.platforms[name as SupportedPlatform] = {
@@ -107,6 +110,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
       external_url: `${baseGateWayURL}${location}`,
       downloadSize: downloadSize,
       installSize: downloadSize,
+      installScript: updatedPlatform.installScript,
     };
   }
   CliUx.ux.action.stop();
