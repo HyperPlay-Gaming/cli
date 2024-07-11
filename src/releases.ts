@@ -32,12 +32,13 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     return { platform, path: zipPath, installScript, executable };
   }));
 
+  const releasePath = `${config.account}/${config.project}/${config.release}`;
   const meta: ReleaseMeta = {
     _metadata_version: "2",
-    path: `${config.account}/${config.project}/${config.release}`,
+    path: releasePath,
     name: config.release,
     description: config.description || "",
-    external_url: "",
+    external_url: `${baseGateWayURL}/${releasePath}`,
     platforms: {},
   };
   CliUx.ux.action.start('uploading files');
@@ -55,7 +56,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     };
   }
 
-  CliUx.ux.action.start(`generating presigned urls`);
+  CliUx.ux.action.start("Generating presigned urls");
   const urls = await getSignedUploadUrls(
     config.account,
     config.project,
@@ -78,7 +79,6 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     let location: string = '';
     const progressIterator = uploadFileS3(
       fileData,
-      name,
       uploadId,
       key,
       partUrls,
@@ -89,7 +89,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
 
     for await (const progressUpdate of progressIterator) {
       if (typeof progressUpdate === 'number') {
-        CliUx.ux.log(`Upload progress ${progressUpdate}`);
+        CliUx.ux.log(`Upload progress for ${name}: ${progressUpdate}`);
       } else {
         location = progressUpdate;
       }
@@ -98,7 +98,8 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     if (location === '') throw ('no location returned');
 
     const { files, ...rest } = platform as DesktopPlatform;
-    const downloadSize = fileData.bytesRead.toString();
+    const fileStat = await fs.promises.stat(config.platforms[name].path);
+    const downloadSize = fileStat.size.toString();
 
     meta.platforms[name as SupportedPlatform] = {
       ...rest,

@@ -131,11 +131,11 @@ export default class Publish extends Command {
     const release = await uploadRelease(apiClient, config);
     CliUx.ux.log(`Successfully uploaded files to HyperPlay: ${release.external_url}`);
 
-    CliUx.ux.action.start('publishing release');
+    CliUx.ux.action.start('Publishing release');
     const tx = await valist.createRelease(projectID, config.release, release);
     CliUx.ux.action.stop();
 
-    CliUx.ux.action.start(`confirming transaction ${tx.hash}`);
+    CliUx.ux.action.start(`Confirming transaction ${tx.hash}`);
     await tx.wait();
     CliUx.ux.action.stop();
 
