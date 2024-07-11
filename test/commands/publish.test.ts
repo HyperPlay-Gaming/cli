@@ -12,7 +12,12 @@ let provider: ethers.JsonRpcProvider;
 let signer: ethers.JsonRpcSigner;
 let walletPassedToPublishCommand: ethers.Wallet;
 
-// publishing unzipped folder is not supported only zipped or unzipped files 
+export type MockPlatform = {
+    platformKey: string;
+    fileName: string;
+    partCount: number;
+}
+
 describe('publish CLI command', () => {
     let valist: Client
     let members: string[] = []
@@ -68,7 +73,7 @@ describe('publish CLI command', () => {
         projectID = generateID(accountID, 'cli');
     })
 
-    async function runPublishCommandWithMockData(releaseVersion: string, publishArgs: string[]) {
+    async function runPublishCommandWithMockData(releaseVersion: string, publishArgs: string[], mockPlatforms: MockPlatform[]) {
         nock(url)
             .get('/api/auth/session')
             .reply(200, {})
@@ -87,6 +92,38 @@ describe('publish CLI command', () => {
 
         const cookieJar = new CookieJar()
         cookieJar.setCookie('next-auth.csrf-token=someCookieValue', url)
+
+        // Mock S3 signed URL request
+        const s3BaseURL = 'https://valist-hpstore.s3.us-east-005.backblazeb2.com';
+        nock(s3BaseURL)
+            .persist()
+            .put(/.*/)
+            .reply(200, {}, { 'ETag': 'mock-etag' });
+
+        nock(url)
+            .post('/api/v1/uploads/releases/presigned-url')
+            .reply(200, {
+                uploadDetails: mockPlatforms.map(platform => ({
+                    platformKey: platform.platformKey,
+                    fileName: platform.fileName,
+                    uploadId: 'mock-upload-id',
+                    partUrls: Array.from({ length: platform.partCount }, (_, i) => ({
+                        partNumber: i + 1,
+                        url: `${s3BaseURL}/mock-part-url/${i + 1}`
+                    })),
+                    key: `test-ground/test44/0.0.18/${platform.platformKey}/${platform.fileName}`
+                }))
+            });
+
+        mockPlatforms.forEach(platform => {
+            nock(url)
+                .put('/api/v1/uploads/complete-multipart-upload', {
+                    uploadId: 'mock-upload-id',
+                    key: `test-ground/test44/0.0.18/${platform.platformKey}/${platform.fileName}`,
+                    parts: [{ PartNumber: 1, ETag: 'mock-etag' }]
+                })
+                .reply(200, { location: `${s3BaseURL}/test-ground/test44/0.0.18/${platform.platformKey}/${platform.fileName}` });
+        });
 
         Publish.cookieJar = cookieJar
         try {
@@ -107,9 +144,16 @@ describe('publish CLI command', () => {
             `--private-key=${publisherPrivateKey}`,
             '--no-meta-tx',
             '--yml-path=./test/mock_data/hyperplay.yml',
-            '--network=http://127.0.0.1:8545/'
+            '--network=http://127.0.0.1:8545/',
+            '--skip_hyperplay_publish'
         ]
-        const releaseMeta = await runPublishCommandWithMockData('v0.0.2', publishArgs)
+        const mockPlatforms = [
+            { platformKey: 'darwin_amd64', fileName: 'mac_x64.zip', partCount: 1 },
+            { platformKey: 'darwin_arm64', fileName: 'mac_arm64.zip', partCount: 1 },
+            { platformKey: 'windows_amd64', fileName: 'windows_amd64.zip', partCount: 1 },
+            { platformKey: 'web', fileName: 'web.zip', partCount: 1 }
+        ]
+        const releaseMeta = await runPublishCommandWithMockData('v0.0.2', publishArgs, mockPlatforms)
         const platformKeys = Object.keys(releaseMeta.platforms)
         expect(platformKeys.includes('web')).true
         expect(platformKeys.includes('darwin_amd64')).true
@@ -122,10 +166,16 @@ describe('publish CLI command', () => {
             `--private-key=${publisherPrivateKey}`,
             '--no-meta-tx',
             '--yml-path=./test/mock_data/hyperplay_publish.yml',
-            '--network=http://127.0.0.1:8545/'
+            '--network=http://127.0.0.1:8545/',
+            '--skip_hyperplay_publish'
         ]
-        const releaseMeta = await runPublishCommandWithMockData('v0.0.3', publishArgs)
-        console.log('release meta ', releaseMeta)
+        const mockPlatforms = [
+            { platformKey: 'HyperPlay-0.12.0-macOS-arm64.dmg', fileName: 'dmg.txt', partCount: 1 },
+            { platformKey: 'darwin_arm64_dmg_zip_blockmap', fileName: 'mac_arm64.zip', partCount: 1 },
+            { platformKey: 'windows_amd64', fileName: 'windows_amd64.zip', partCount: 1 },
+            { platformKey: 'latest_mac_yml', fileName: 'web.zip', partCount: 1 }
+        ]
+        const releaseMeta = await runPublishCommandWithMockData('v0.0.3', publishArgs, mockPlatforms)
         const platformKeys = Object.keys(releaseMeta.platforms)
         expect(platformKeys.includes('HyperPlay-0.12.0-macOS-arm64.dmg')).true
         expect(platformKeys.includes('darwin_arm64_dmg_zip_blockmap')).true
