@@ -32,7 +32,7 @@ $ npm install -g @hyperplay/cli
 $ hyperplay COMMAND
 running command...
 $ hyperplay (--version)
-@hyperplay/cli/2.11.4 win32-x64 node-v20.8.0
+@hyperplay/cli/2.13.0 darwin-arm64 node-v20.12.2
 $ hyperplay --help [COMMAND]
 USAGE
   $ hyperplay COMMAND
