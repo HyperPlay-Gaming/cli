@@ -153,7 +153,6 @@ export default class Publish extends Command {
     let releaseText = 'view the release at:\n'
     if (!flags['skip_hyperplay_publish'])
       releaseText += `https://developers.hyperplay.xyz/${config.account}/${config.project}/settings\n`
-    releaseText += release.external_url + '\n'
     CliUx.ux.log(releaseText);
 
     this.exit(0);
