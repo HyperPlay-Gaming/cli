@@ -16,8 +16,8 @@ platforms:
     path: ./mock_data/windows_amd64
     zip: true
     executable: test_win_x64.txt
-  web: 
-    path: ./mock_data/web
+  webgl: 
+    path: ./mock_data/webgl
     zip: true
     executable: test_win_x64.txt
     
