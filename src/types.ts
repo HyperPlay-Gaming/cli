@@ -3,6 +3,8 @@ export interface PlatformConfig {
     zip: boolean
     executable: string
     installScript: string
+    // only used for web build
+    externalUrl?: string
 }
 
 export type PlatformsConfig = Record<string, PlatformConfig>;

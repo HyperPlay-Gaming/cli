@@ -19,6 +19,12 @@ interface PlatformEntry {
 const baseGateWayURL = `https://gateway-b3.valist.io`;
 
 export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig) {
+  let webPlatform = null
+  if (Object.keys(config.platforms).some(val=>val==='web')){
+    webPlatform = config.platforms.web
+    delete config.platforms.web
+  }
+
   const updatedPlatformEntries: PlatformEntry[] = await Promise.all(Object.entries(config.platforms).map(async ([platform, platformConfig]) => {
     const installScript = platformConfig.installScript;
     const executable = platformConfig.executable;
@@ -113,6 +119,11 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
       installScript: updatedPlatform.installScript,
     };
   }
+  
+  if (webPlatform && webPlatform.externalUrl){
+    meta.platforms.web = { external_url: webPlatform.externalUrl, name: 'web' }
+  }
+
   CliUx.ux.action.stop();
   return meta;
 }
