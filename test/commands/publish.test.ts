@@ -151,11 +151,11 @@ describe('publish CLI command', () => {
             { platformKey: 'darwin_amd64', fileName: 'mac_x64.zip', partCount: 1 },
             { platformKey: 'darwin_arm64', fileName: 'mac_arm64.zip', partCount: 1 },
             { platformKey: 'windows_amd64', fileName: 'windows_amd64.zip', partCount: 1 },
-            { platformKey: 'web', fileName: 'web.zip', partCount: 1 }
+            { platformKey: 'webgl', fileName: 'webgl.zip', partCount: 1 }
         ]
         const releaseMeta = await runPublishCommandWithMockData('v0.0.2', publishArgs, mockPlatforms)
         const platformKeys = Object.keys(releaseMeta.platforms)
-        expect(platformKeys.includes('web')).true
+        expect(platformKeys.includes('webgl')).true
         expect(platformKeys.includes('darwin_amd64')).true
         expect(platformKeys.includes('darwin_arm64')).true
         expect(platformKeys.includes('windows_amd64')).true
