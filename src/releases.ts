@@ -41,78 +41,70 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     external_url: `${baseGateWayURL}/${releasePath}`,
     platforms: {},
   };
+
   CliUx.ux.action.start('uploading files');
 
-  const platformsToSign: Partial<Record<SupportedPlatform, DesktopPlatform | WebPlatform>> = {};
   for (const platformEntry of updatedPlatformEntries) {
     const platformKey = platformEntry.platform as SupportedPlatform;
     const { path, executable } = platformEntry;
-    const file = fs.createReadStream(path);
 
-    platformsToSign[platformKey] = {
-      platform: platformKey,
-      files: file,
-      executable,
-    };
-  }
+    const files = [{
+      fileName: path.split("/").pop() || "file",
+      fileType: "application/octet-stream",
+      fileSize: (await fs.promises.stat(path)).size,
+    }];
 
-  CliUx.ux.action.start("Generating presigned urls");
-  const urls = await getSignedUploadUrls(
-    config.account,
-    config.project,
-    config.release,
-    platformsToSign,
-    {
-      client,
-    },
-  );
-  CliUx.ux.action.stop();
+    CliUx.ux.action.start(`Generating presigned URLs for ${platformKey}`);
+    const urls = await getSignedUploadUrls(
+      config.account,
+      config.project,
+      config.release,
+      platformKey,
+      files,
+      { client },
+    );
 
-  const signedPlatformEntries = Object.entries(platformsToSign);
-  for (const [name, platform] of signedPlatformEntries) {
-    const preSignedUrl = urls.find((data) => data.platformKey === name);
-    if (!preSignedUrl) throw "no pre-signed url found for platform";
+    CliUx.ux.action.stop();
+    const preSignedUrl = urls[0];
+    if (!preSignedUrl) throw new Error("No presigned URL found for platform");
 
     const { uploadId, partUrls, key } = preSignedUrl;
-    const fileData = platform.files as fs.ReadStream;
+    const fileData = platformEntry.path;
 
     let location: string = '';
     const progressIterator = uploadFileS3(
-      fileData,
+      fs.createReadStream(fileData),
       uploadId,
       key,
       partUrls,
-      {
-        client,
-      }
+      { client }
     );
 
+    // Track upload progress
     for await (const progressUpdate of progressIterator) {
       if (typeof progressUpdate === 'number') {
-        CliUx.ux.log(`Upload progress for ${name}: ${progressUpdate}`);
+        CliUx.ux.log(`Upload progress for ${platformKey}: ${progressUpdate}%`);
       } else {
         location = progressUpdate;
       }
     }
 
-    if (location === '') throw ('no location returned');
+    if (!location) throw new Error('No location returned');
 
-    const { files, ...rest } = platform as DesktopPlatform;
-    const updatedPlatform = updatedPlatformEntries.find((item) => item.platform === name);
-    if (!updatedPlatform) throw ("updated platform path not found");
-
-    const fileStat = await fs.promises.stat(updatedPlatform.path);
+    const fileStat = await fs.promises.stat(platformEntry.path);
     const downloadSize = fileStat.size.toString();
 
-    meta.platforms[name as SupportedPlatform] = {
-      ...rest,
+    // Add platform metadata after successful upload
+    meta.platforms[platformKey] = {
+      executable,
       name: preSignedUrl.fileName,
-      external_url: `${baseGateWayURL}${location}`,
-      downloadSize: downloadSize,
+      external_url: `${baseGateWayURL}/${location}`,
+      downloadSize,
       installSize: downloadSize,
-      installScript: updatedPlatform.installScript,
+      installScript: platformEntry.installScript,
     };
   }
+
   CliUx.ux.action.stop();
   return meta;
 }
