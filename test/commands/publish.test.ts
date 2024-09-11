@@ -46,7 +46,7 @@ describe('publish CLI command', () => {
         const address = await signer.getAddress();
         members = [address, walletPassedToPublishCommand.address];
 
-        // send eth to walletPassedToPublishCommand
+        // send ETH to walletPassedToPublishCommand
         const txn = {
             to: walletPassedToPublishCommand.address,
             value: ethers.parseEther('0.5'),
@@ -72,34 +72,46 @@ describe('publish CLI command', () => {
     });
 
     function mockS3PresignedUrls(mockPlatforms: MockPlatform[]) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // Mock the generation of pre-signed URLs for each platform
         mockPlatforms.forEach(platform => {
-            nock(s3BaseURL)
-                .persist()
-                .put(/.*/)
-                .reply(200, {}, { 'ETag': 'mock-etag' });
+            nock(url)
+                .post('/api/v1/uploads/presigned-url')
+                .reply(200, {
+                    uploadDetails: [{
+                        fileName: platform.fileName,
+                        uploadId: 'mock-upload-id',
+                        partUrls: Array.from({ length: platform.partCount }, (_, i) => ({
+                            partNumber: i + 1,
+                            url: `${s3BaseURL}/mock-part-url/${i + 1}`,
+                        })),
+                        key: `test-ground/test44/0.0.18/${platform.platformKey}/${platform.fileName}`,
+                    }],
+                });
         });
 
-        nock(url)
-            .post('/api/v1/uploads/presigned-url')
-            .reply(200, {
-                uploadDetails: mockPlatforms.map(platform => ({
-                    platformKey: platform.platformKey,
-                    fileName: platform.fileName,
-                    uploadId: 'mock-upload-id',
-                    partUrls: Array.from({ length: platform.partCount }, (_, i) => ({
-                        partNumber: i + 1,
-                        url: `${s3BaseURL}/mock-part-url/${i + 1}`,
-                    })),
-                    key: `test-ground/test44/0.0.18/${platform.platformKey}/${platform.fileName}`,
-                })),
-            });
+        // Mock successful S3 part uploads
+        mockPlatforms.forEach(platform => {
+            for (let i = 1; i <= platform.partCount; i++) {
+                nock(s3BaseURL)
+                    .put(`/mock-part-url/${i}`)
+                    .reply(200, {}, { 'ETag': `mock-etag-${i}` });
+            }
+        });
     }
 
     function mockMultipartUploadCompletion(mockPlatforms: MockPlatform[]) {
         mockPlatforms.forEach(platform => {
+            const parts = Array.from({ length: platform.partCount }, (_, i) => ({
+                PartNumber: i + 1,
+                ETag: `mock-etag-${i + 1}`,
+            }));
+
             nock(url)
-                .put('/api/v1/uploads/complete-multipart-upload')
+                .put('/api/v1/uploads/complete-multipart-upload', {
+                    uploadId: 'mock-upload-id',
+                    key: `test-ground/test44/0.0.18/${platform.platformKey}/${platform.fileName}`,
+                    parts: parts
+                })
                 .reply(200, {
                     location: `${s3BaseURL}/test-ground/test44/0.0.18/${platform.platformKey}/${platform.fileName}`,
                 });
@@ -123,13 +135,24 @@ describe('publish CLI command', () => {
             .reply(200, { user: { address: '0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1' } });
     }
 
+    function mockAPIRequests() {
+        nock(url)
+            .post('/api/v1/reviews/release')
+            .reply(200, {})
+            .get('/api/v1/channels')
+            .reply(200, {})
+            .get(`/api/v1/channels?project_id=${projectID}`)
+            .reply(200, [])
+    }
+
     async function runPublishCommandWithMockData(releaseVersion: string, publishArgs: string[], mockPlatforms: MockPlatform[]) {
         const cookieJar = new CookieJar();
         Publish.cookieJar = cookieJar;
 
-        mockS3PresignedUrls(mockPlatforms);
-        mockMultipartUploadCompletion(mockPlatforms); // Mock multipart upload completion
-        mockAuthRequests(cookieJar); // Ensure auth requests are mocked and CSRF token is set
+        mockS3PresignedUrls(mockPlatforms);  // Mock S3 URL generation
+        mockMultipartUploadCompletion(mockPlatforms);  // Mock multipart upload completion
+        mockAuthRequests(cookieJar);  // Mock authentication requests
+        mockAPIRequests();
 
         try {
             await Publish.run(publishArgs);

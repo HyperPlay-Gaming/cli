@@ -70,7 +70,7 @@ export default class Publish extends Command {
     if (!config.platforms) this.error('no platforms configured');
 
     for (const [key, value] of Object.entries(config.platforms)) {
-      if (!value.executable) this.error(`No executable path found for platform ${key}`)
+      if (!value.executable && key !== "webgl") this.error(`No executable path found for platform ${key}`)
     }
 
     config.account = config.account.toLowerCase();
