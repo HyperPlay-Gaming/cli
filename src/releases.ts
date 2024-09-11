@@ -87,7 +87,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
       let location = '';
       for await (const progressUpdate of progressIterator) {
         if (typeof progressUpdate === 'number') {
-          CliUx.ux.log(`Upload progress for ${platformKey}: ${progressUpdate}%`);
+          CliUx.ux.log(`Upload progress for ${platformKey} - ${url.fileName}: ${progressUpdate}%`);
         } else {
           location = progressUpdate;
         }
@@ -102,7 +102,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
       meta.platforms[platformKey] = {
         executable,
         name: url.fileName,
-        external_url: `${baseGateWayURL}/${location}`,
+        external_url: `${baseGateWayURL}${location}`,
         downloadSize,
         installSize: downloadSize,
         installScript: platformEntry.installScript,
