@@ -22,18 +22,19 @@ const baseGateWayURL = `https://gateway-b3.valist.io`;
 
 export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig) {
   const updatedPlatformEntries: PlatformEntry[] = await Promise.all(Object.entries(config.platforms).map(async ([platform, platformConfig]) => {
-    const installScript = platformConfig.installScript;
-    const executable = platformConfig.executable;
+    const installScript = platformConfig?.installScript;
+    const executable = platformConfig?.executable;
+    const externalUrl = platformConfig?.externalUrl;
 
     if (config && config.platforms[platform] && !config.platforms[platform].zip) {
-      return { platform, path: platformConfig.path, installScript, executable };
+      return { platform, path: platformConfig.path, installScript, executable, externalUrl };
     }
 
     const zipPath = getZipName(platformConfig.path);
     CliUx.ux.action.start(`Zipping ${zipPath}`);
     await zipDirectory(platformConfig.path, zipPath);
     CliUx.ux.action.stop();
-    return { platform, path: zipPath, installScript, executable };
+    return { platform, path: zipPath, installScript, executable, externalUrl };
   }));
 
   const releasePath = `${config.account}/${config.project}/${config.release}`;
