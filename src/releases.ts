@@ -15,6 +15,7 @@ interface PlatformEntry {
   path: string;
   installScript: string;
   executable: string;
+  externalUrl?: string;
 }
 
 const baseGateWayURL = `https://gateway-b3.valist.io`;
@@ -49,7 +50,15 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
 
   for (const platformEntry of updatedPlatformEntries) {
     const platformKey = platformEntry.platform as SupportedPlatform;
-    const { path: platformPath, executable } = platformEntry;
+    const { path: platformPath, executable, externalUrl } = platformEntry;
+
+    if (externalUrl && platformKey === "web") {
+      meta.platforms[platformKey] = {
+        name: "web",
+        external_url: externalUrl,
+      };
+      continue;
+    }
 
     // Handle WebGL folder upload, otherwise treat as a single file
     const isWebGL = platformKey === 'webgl';
@@ -114,7 +123,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
   return meta;
 }
 
-// Helper function to gather all files in a folder for WebGL uploads
+// Helper function to gather all files in a folder for folder uploads
 async function getFolderFiles(folderPath: string): Promise<Array<{ fileName: string, filePath: string, fileSize: number }>> {
   const fileList: Array<{ fileName: string, filePath: string, fileSize: number }> = [];
 
