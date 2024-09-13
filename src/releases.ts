@@ -1,35 +1,41 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import path from "path";
+import fs from "fs";
+import mime from "mime-types";
 import { CliUx } from '@oclif/core';
 import { ReleaseMeta } from "@valist/sdk";
 import { SupportedPlatform } from '@valist/sdk/dist/typesShared';
 import { zipDirectory } from './zip';
 import { ReleaseConfig } from './types';
 import { getZipName } from './utils/getZipName';
-import { DesktopPlatform, WebPlatform, getSignedUploadUrls, uploadFileS3 } from '@valist/sdk/dist/s3';
-import fs from "fs";
+import { getSignedUploadUrls, uploadFileS3 } from '@valist/sdk/dist/s3';
 import { AxiosInstance } from 'axios';
 
 interface PlatformEntry {
-  platform: string
-  path: string
-  installScript: string
-  executable: string
+  platform: string;
+  path: string;
+  installScript: string;
+  executable: string;
+  externalUrl?: string;
 }
 
 const baseGateWayURL = `https://gateway-b3.valist.io`;
 
 export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig) {
   const updatedPlatformEntries: PlatformEntry[] = await Promise.all(Object.entries(config.platforms).map(async ([platform, platformConfig]) => {
-    const installScript = platformConfig.installScript;
-    const executable = platformConfig.executable;
+    const installScript = platformConfig?.installScript;
+    const executable = platformConfig?.executable;
+    const externalUrl = platformConfig?.externalUrl;
+
+    // @TODO Add better handling for zip step
     if (config && config.platforms[platform] && !config.platforms[platform].zip) {
-      return { platform, path: platformConfig.path, installScript, executable }
+      return { platform, path: platformConfig.path, installScript, executable, externalUrl };
     }
+
     const zipPath = getZipName(platformConfig.path);
-    CliUx.ux.action.start(`zipping ${zipPath}`);
+    CliUx.ux.action.start(`Zipping ${zipPath}`);
     await zipDirectory(platformConfig.path, zipPath);
     CliUx.ux.action.stop();
-    return { platform, path: zipPath, installScript, executable };
+    return { platform, path: zipPath, installScript, executable, externalUrl };
   }));
 
   const releasePath = `${config.account}/${config.project}/${config.release}`;
@@ -41,78 +47,121 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     external_url: `${baseGateWayURL}/${releasePath}`,
     platforms: {},
   };
-  CliUx.ux.action.start('uploading files');
 
-  const platformsToSign: Partial<Record<SupportedPlatform, DesktopPlatform | WebPlatform>> = {};
+  CliUx.ux.action.start('Uploading files');
+
   for (const platformEntry of updatedPlatformEntries) {
     const platformKey = platformEntry.platform as SupportedPlatform;
-    const { path, executable } = platformEntry;
-    const file = fs.createReadStream(path);
+    const { path: platformPath, executable, externalUrl } = platformEntry;
 
-    platformsToSign[platformKey] = {
-      platform: platformKey,
-      files: file,
-      executable,
-    };
-  }
-
-  CliUx.ux.action.start("Generating presigned urls");
-  const urls = await getSignedUploadUrls(
-    config.account,
-    config.project,
-    config.release,
-    platformsToSign,
-    {
-      client,
-    },
-  );
-  CliUx.ux.action.stop();
-
-  const signedPlatformEntries = Object.entries(platformsToSign);
-  for (const [name, platform] of signedPlatformEntries) {
-    const preSignedUrl = urls.find((data) => data.platformKey === name);
-    if (!preSignedUrl) throw "no pre-signed url found for platform";
-
-    const { uploadId, partUrls, key } = preSignedUrl;
-    const fileData = platform.files as fs.ReadStream;
-
-    let location: string = '';
-    const progressIterator = uploadFileS3(
-      fileData,
-      uploadId,
-      key,
-      partUrls,
-      {
-        client,
-      }
-    );
-
-    for await (const progressUpdate of progressIterator) {
-      if (typeof progressUpdate === 'number') {
-        CliUx.ux.log(`Upload progress for ${name}: ${progressUpdate}`);
-      } else {
-        location = progressUpdate;
-      }
+    /* @TODO Refactor to use alternative pipeline approach with 
+    default values for possible states/checks e.g. (zip, checkExe, isFolder)*/
+    if (externalUrl && platformKey === "web") {
+      meta.platforms[platformKey] = {
+        name: "web",
+        external_url: externalUrl,
+      };
+      continue;
     }
 
-    if (location === '') throw ('no location returned');
+    // @TODO Refactor to general isFolder and default for WebGL
+    // Handle WebGL folder upload, otherwise treat as a single file
+    const isWebGL = platformKey === 'webgl';
+    const files = isWebGL ? await getFolderFiles(platformPath) : await getSingleFile(platformPath);
 
-    const { files, ...rest } = platform as DesktopPlatform;
-    const updatedPlatform = updatedPlatformEntries.find((item) => item.platform === name);
-    if (!updatedPlatform) throw ("updated platform path not found");
+    CliUx.ux.action.start(`Generating presigned URLs for ${platformKey}`);
+    const urls = await getSignedUploadUrls({
+      account: config.account,
+      project: config.project,
+      release: config.release,
+      platform: platformKey,
+      files: files.map(file => ({
+        fileName: file.fileName,
+        fileType: mime.lookup(file.filePath) || 'application/octet-stream',
+        fileSize: file.fileSize,
+      })),
+      type: "release",
+    }, { client });
+    CliUx.ux.action.stop();
 
-    const fileStat = await fs.promises.stat(updatedPlatform.path);
-    const downloadSize = fileStat.size.toString();
+    for (const url of urls) {
+      const fileData = isWebGL ? files.find(f => f.fileName === url.fileName)?.filePath : platformPath;
+      if (!fileData) throw new Error(`File data not found for ${url.fileName}`);
 
-    meta.platforms[name as SupportedPlatform] = {
-      ...rest,
-      name: preSignedUrl.fileName,
-      external_url: `${baseGateWayURL}${location}`,
-      downloadSize: downloadSize,
-      installSize: downloadSize,
-      installScript: updatedPlatform.installScript,
-    };
+      const fileType = mime.lookup(fileData) || 'application/octet-stream';
+      const progressIterator = uploadFileS3(
+        fs.createReadStream(fileData),
+        url.uploadId,
+        url.key,
+        url.partUrls,
+        fileType,
+        { client }
+      );
+
+      let location = '';
+      for await (const progressUpdate of progressIterator) {
+        if (typeof progressUpdate === 'number') {
+          CliUx.ux.log(`Upload progress for ${platformKey} - ${url.fileName}: ${progressUpdate}%`);
+        } else {
+          location = progressUpdate;
+        }
+      }
+
+      if (!location) throw new Error('No location returned after upload');
+
+      const fileStat = await fs.promises.stat(fileData);
+      const downloadSize = fileStat.size.toString();
+      if (isWebGL) location = path.dirname(location);
+
+      // Add platform metadata after successful upload
+      meta.platforms[platformKey] = {
+        executable,
+        name: url.fileName,
+        external_url: `${baseGateWayURL}${location}`,
+        downloadSize,
+        installSize: downloadSize,
+        installScript: platformEntry.installScript,
+      };
+    }
   }
+
   CliUx.ux.action.stop();
   return meta;
+}
+
+// Helper function to gather all files in a folder for folder uploads
+async function getFolderFiles(folderPath: string): Promise<Array<{ fileName: string, filePath: string, fileSize: number }>> {
+  const fileList: Array<{ fileName: string, filePath: string, fileSize: number }> = [];
+
+  async function walkDirectory(currentPath: string) {
+    const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const entryPath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        await walkDirectory(entryPath);
+      } else {
+        const fileSize = (await fs.promises.stat(entryPath)).size;
+        fileList.push({
+          fileName: path.relative(folderPath, entryPath),
+          filePath: entryPath,
+          fileSize,
+        });
+      }
+    }
+  }
+
+  await walkDirectory(folderPath);
+  return fileList;
+}
+
+// Helper function for single file uploads
+async function getSingleFile(filePath: string): Promise<Array<{ fileName: string, filePath: string, fileSize: number }>> {
+  const fileSize = (await fs.promises.stat(filePath)).size;
+  const fileName = path.basename(filePath);
+
+  return [{
+    fileName,
+    filePath,
+    fileSize,
+  }];
 }

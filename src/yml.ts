@@ -4,13 +4,13 @@ import YAML from 'yaml';
 import { FlagOutput } from "@oclif/core/lib/interfaces";
 
 /* eslint-disable-next-line */
-export function parseYml(args: {[name: string]: any;}, flags: FlagOutput): ReleaseConfig | undefined{
+export function parseYml(args: { [name: string]: any; }, flags: FlagOutput): ReleaseConfig | undefined {
   //TODO: add zod validation
   let config: ReleaseConfig;
   const flagPath = flags['yml-path']
   const ymlPath = flagPath ? flagPath : 'hyperplay.yml'
   // using hyperplay.yml 
-  if(fs.existsSync(ymlPath)){
+  if (fs.existsSync(ymlPath)) {
     const data = fs.readFileSync(ymlPath, 'utf8');
     config = YAML.parse(data);
 
@@ -26,7 +26,7 @@ export function parseYml(args: {[name: string]: any;}, flags: FlagOutput): Relea
     }
   }
   else {
-      return undefined
+    return undefined
   }
   return config
 }
