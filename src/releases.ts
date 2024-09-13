@@ -26,6 +26,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     const executable = platformConfig?.executable;
     const externalUrl = platformConfig?.externalUrl;
 
+    // @TODO Add better handling for zip step
     if (config && config.platforms[platform] && !config.platforms[platform].zip) {
       return { platform, path: platformConfig.path, installScript, executable, externalUrl };
     }
@@ -53,6 +54,8 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
     const platformKey = platformEntry.platform as SupportedPlatform;
     const { path: platformPath, executable, externalUrl } = platformEntry;
 
+    /* @TODO Refactor to use alternative pipeline approach with 
+    default values for possible states/checks e.g. (zip, checkExe, isFolder)*/
     if (externalUrl && platformKey === "web") {
       meta.platforms[platformKey] = {
         name: "web",
@@ -61,6 +64,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
       continue;
     }
 
+    // @TODO Refactor to general isFolder and default for WebGL
     // Handle WebGL folder upload, otherwise treat as a single file
     const isWebGL = platformKey === 'webgl';
     const files = isWebGL ? await getFolderFiles(platformPath) : await getSingleFile(platformPath);
@@ -107,6 +111,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
 
       const fileStat = await fs.promises.stat(fileData);
       const downloadSize = fileStat.size.toString();
+      if (isWebGL) location = path.dirname(location);
 
       // Add platform metadata after successful upload
       meta.platforms[platformKey] = {
