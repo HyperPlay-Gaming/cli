@@ -141,9 +141,14 @@ async function getFolderFiles(folderPath: string): Promise<Array<{ fileName: str
         await walkDirectory(entryPath);
       } else {
         const fileSize = (await fs.promises.stat(entryPath)).size;
+
+        // Normalize to posix paths to ensure forward slashes
+        const relativeFileName = path.posix.relative(folderPath, entryPath);
+        const posixEntryPath = path.posix.join(folderPath, relativeFileName);
+
         fileList.push({
-          fileName: path.relative(folderPath, entryPath),
-          filePath: entryPath,
+          fileName: relativeFileName,
+          filePath: posixEntryPath,
           fileSize,
         });
       }
