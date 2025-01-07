@@ -87,7 +87,7 @@ export default class Publish extends Command {
     const fullReleaseName = `${config.account}/${config.project}/${config.release}`;
     console.log('Publishing', { platforms: config.platforms }, `as ${fullReleaseName}`);
 
-    const privateKey = flags['private-key'] || await select();
+    const privateKey = flags['private-key'];
     const metaTx = flags['meta-tx'];
 
     const cookieJar = Publish.cookieJar ?? new CookieJar();
