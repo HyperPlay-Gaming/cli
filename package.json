@@ -31,7 +31,7 @@
     "qs": "^6.13.1",
     "siwe": "^2.1.4",
     "tough-cookie": "^5.0.0",
-    "typescript-plugin-css-modules": "^5.1.0",
+    "typescript-plugin-css-modules": "5.1.0",
     "ua-parser-js": "1.0.35",
     "yaml": "^2.1.0"
   },
@@ -44,13 +44,13 @@
     "@types/node": "^16.9.4",
     "@types/qs": "^6.9.17",
     "@types/tough-cookie": "^4.0.5",
-    "@typescript-eslint/eslint-plugin": "^8.19.1",
-    "@typescript-eslint/parser": "^8.19.1",
+    "@typescript-eslint/eslint-plugin": "^7.1.1",
+    "@typescript-eslint/parser": "^7.1.1",
     "chai": "^4",
-    "eslint": "^9.17.0",
-    "eslint-plugin-mocha": "^10.5.0",
+    "eslint": "^8.15.0",
+    "eslint-plugin-mocha": "^10.0.4",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-unicorn": "^56.0.1",
+    "eslint-plugin-unicorn": "^42.0.0",
     "globby": "^11",
     "hardhat": "^2.22.3",
     "mocha": "^11.0.1",
@@ -59,7 +59,8 @@
     "oclif": "^3",
     "shx": "^0.3.3",
     "ts-node": "^10.2.1",
-    "typescript": "^5.7.2"
+    "typescript": "5.5.2",
+    "typescript-eslint": "^8.19.1"
   },
   "oclif": {
     "bin": "hyperplay",
