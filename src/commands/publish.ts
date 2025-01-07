@@ -2,7 +2,6 @@ import { Command, CliUx } from '@oclif/core';
 import { ethers } from 'ethers';
 import { create, Options } from '@valist/sdk';
 import * as flags from '../flags';
-import { select } from '../keys';
 import { CookieJar } from 'tough-cookie';
 import axios from 'axios';
 import { wrapper } from 'axios-cookiejar-support';
