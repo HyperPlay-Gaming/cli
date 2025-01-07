@@ -64,8 +64,8 @@ export async function login(client: AxiosInstance, cookieJar: CookieJar, signer:
 export async function publish(client: AxiosInstance, projectID: string, path: string, targetChannel: string) {
   CliUx.ux.log('Fetching listing release branches');
   const channels = (await client.get<{ channel_id: number, channel_name: string }[]>(`/api/v1/channels?project_id=${projectID}`)).data;
-
   const releaseChannel = channels.find((channel) => targetChannel === channel.channel_name);
+  if (!releaseChannel) CliUx.ux.warn(`Provided release channel_name ${targetChannel} not found on project!`);
 
   CliUx.ux.log('Submitting release for review');
   await client.post("/api/v1/reviews/release", {
