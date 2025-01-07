@@ -11,7 +11,7 @@ jobs:
   release:
     uses: HyperPlay-Gaming/workflows/.github/workflows/npm_publish.yml@main
     with:
-      node_version: '18'
+      node_version: '22'
       pkg_manager: 'npm'
       install: 'npm install'
       build: 'npm run build'

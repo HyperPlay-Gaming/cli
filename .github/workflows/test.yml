@@ -8,7 +8,7 @@ jobs:
   test:
     uses: HyperPlay-Gaming/workflows/.github/workflows/nodejs_commands.yml@main
     with:
-      node_version: '18'
+      node_version: '22'
       pkg_manager: 'npm'
       install: 'npm install'
       name: 'test'
