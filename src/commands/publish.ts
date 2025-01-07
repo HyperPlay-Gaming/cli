@@ -10,6 +10,11 @@ import { uploadRelease } from '../releases';
 import { parseYml } from '../yml';
 import { FlagOutput } from '@oclif/core/lib/interfaces';
 
+async function getSelect() {
+  const { select } = await import('../keys');
+  return await select();
+}
+
 export default class Publish extends Command {
   static cookieJar?: CookieJar
   static options: Partial<Options> = {}
@@ -86,7 +91,7 @@ export default class Publish extends Command {
     const fullReleaseName = `${config.account}/${config.project}/${config.release}`;
     console.log('Publishing', { platforms: config.platforms }, `as ${fullReleaseName}`);
 
-    const privateKey = flags['private-key'];
+    const privateKey = flags['private-key'] ? flags['private-key'] : await getSelect();
     const metaTx = flags['meta-tx'];
 
     const cookieJar = Publish.cookieJar ?? new CookieJar();
