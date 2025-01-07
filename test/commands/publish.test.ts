@@ -142,7 +142,31 @@ describe('publish CLI command', () => {
             .get('/api/v1/channels')
             .reply(200, {})
             .get(`/api/v1/channels?project_id=${projectID}`)
-            .reply(200, [])
+            .reply(200, [{
+                "channel_id": 307,
+                "channel_name": "main",
+                "license_config_id": null,
+                "is_early_release": false,
+                "release_meta": {
+                    "name": "v0.1.1",
+                    "meta_uri": "https://gateway.valist.io/ipfs/bafkreiflocbxkrbvegdpk27vh3vi4nxfvytscnel5f7bzklaagaofslzea",
+                    "platforms": {
+                        "windows_amd64": {
+                            "name": "artifact.zip",
+                            "executable": "./test.exe",
+                            "installSize": "82810655",
+                            "downloadSize": "82810655",
+                            "external_url": "https://gateway-b3.valist.io/test/test/v0.1.67/windows_amd64/artifact.zip"
+                        }
+                    },
+                    "project_id": "0xe7b22779eb04b720fb4a73e4076dd716408f21d460742e95875511769c43e2f8",
+                    "release_id": "0x88e3ccc39166d526001f11033b09b02aef9034c073ddcd7494eb19a34ce44941",
+                    "description": "Example Release",
+                    "external_url": "https://gateway-b3.valist.io/test/test/v0.1.67",
+                    "release_name": "v0.1.1",
+                    "date_submitted": "2025-01-07T18:45:26.909+00:00"
+                }
+            }])
     }
 
     async function runPublishCommandWithMockData(releaseVersion: string, publishArgs: string[], mockPlatforms: MockPlatform[]) {
@@ -174,6 +198,7 @@ describe('publish CLI command', () => {
             '--no-meta-tx',
             '--yml-path=./test/mock_data/hyperplay.yml',
             '--network=http://127.0.0.1:8545/',
+            '--channel=main',
         ];
 
         const mockPlatforms = [
