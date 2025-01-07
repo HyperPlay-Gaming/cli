@@ -1,21 +1,19 @@
 import { AxiosInstance } from 'axios';
 import { ethers } from 'ethers';
 import { SiweMessage } from 'siwe';
-import { CookieJar } from 'tough-cookie';
+import { Cookie, CookieJar } from 'tough-cookie';
 import qs from "qs";
 import { CliUx } from '@oclif/core';
 
-async function logCookiesAndCheckCsrf(cookieJar: CookieJar, baseUrl: string): Promise<string | null> {
-  const cookies = await new Promise<string>((resolve, reject) => {
-    /* eslint-disable-next-line */
-    cookieJar.getCookies(baseUrl, (err: any, cookies: any[]) => {
-      if (err) reject(err);
-      else resolve(cookies.join('; '));
-    });
-  });
+export async function logCookiesAndCheckCsrf(
+  cookieJar: CookieJar,
+  baseUrl: string
+): Promise<string | null> {
+  const cookiesArray: Cookie[] = await cookieJar.getCookies(baseUrl);
+  const cookiesString = cookiesArray.map((cookie) => cookie.toString()).join('; ');
 
   const csrfTokenRegex: RegExp = /next-auth\.csrf-token=([^;]+)/;
-  const match = csrfTokenRegex.exec(cookies);
+  const match = csrfTokenRegex.exec(cookiesString);
   const csrfToken = match ? match[1] : null;
   return csrfToken;
 }
@@ -66,8 +64,8 @@ export async function login(client: AxiosInstance, cookieJar: CookieJar, signer:
 export async function publish(client: AxiosInstance, projectID: string, path: string, targetChannel: string) {
   CliUx.ux.log('Fetching listing release branches');
   const channels = (await client.get<{ channel_id: number, channel_name: string }[]>(`/api/v1/channels?project_id=${projectID}`)).data;
-
   const releaseChannel = channels.find((channel) => targetChannel === channel.channel_name);
+  if (!releaseChannel) CliUx.ux.warn(`Provided release channel_name ${targetChannel} not found on project!`);
 
   CliUx.ux.log('Submitting release for review');
   await client.post("/api/v1/reviews/release", {
