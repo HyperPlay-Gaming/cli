@@ -13,7 +13,7 @@ jobs:
     with:
       node_version: '22'
       pkg_manager: 'npm'
-      install: 'npm install'
+      install: 'npm install && sudo apt-get update && sudo apt-get install -y libsecret-1-dev'
       build: 'npm run build'
       publish: 'npm publish'
       pkg_manager_add_dev_dep: 'npm install --save-dev'
