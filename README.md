@@ -6,7 +6,6 @@ HyperPlay command line interface.
 * [HyperPlay CLI](#hyperplay-cli)
 * [Install](#install)
 * [Usage](#usage)
-* [dist/windows/amd64/hello-go.zip zipped in a separate step so we don't need to zip with the cli](#distwindowsamd64hello-gozip-zipped-in-a-separate-step-so-we-dont-need-to-zip-with-the-cli)
 * [Commands](#commands)
 * [FAQ](#faq)
 <!-- tocstop -->
