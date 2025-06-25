@@ -1,10 +1,9 @@
-import { AxiosInstance } from 'axios';
+import { AxiosInstance, AxiosError } from 'axios';
 import { ethers } from 'ethers';
 import { SiweMessage } from 'siwe';
 import { Cookie, CookieJar } from 'tough-cookie';
 import qs from "qs";
 import { CliUx } from '@oclif/core';
-import { AxiosError } from 'axios';
 
 export async function logCookiesAndCheckCsrf(
   cookieJar: CookieJar,
