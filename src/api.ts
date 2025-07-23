@@ -18,34 +18,62 @@ export async function logCookiesAndCheckCsrf(
   return csrfToken;
 }
 
+async function getAuthSession(client: AxiosInstance): Promise<void> {
+  try {
+    await client.get("/api/auth/session");
+  } catch (error) {
+    console.log(`❌ Session request failed:`, error);
+    throw error;
+  }
+}
+
+async function getCsrfToken(client: AxiosInstance): Promise<string> {
+  try {
+    const csrfResponse = await client.get("/api/auth/csrf");
+    return csrfResponse.data.csrfToken;
+  } catch (error) {
+    console.log(`❌ CSRF request failed:`, error);
+    throw error;
+  }
+}
+
+async function submitAuthCallback(client: AxiosInstance, formData: string): Promise<void> {
+  try {
+    await client.post("/api/auth/callback/ethereum?", formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+    });
+  } catch (error) {
+    console.log(`❌ Callback request failed:`, error);
+    throw error;
+  }
+}
+
 export async function login(client: AxiosInstance, cookieJar: CookieJar, signer: ethers.Wallet) {
-  await client.get("/api/auth/session");
+  await getAuthSession(client);
 
   const hasCsrfToken = await logCookiesAndCheckCsrf(cookieJar, client.defaults.baseURL as string);
   if (!hasCsrfToken) {
     throw new Error("CSRF token not found in the cookie jar.");
   }
 
-  const csrfResponse = await client.get("/api/auth/csrf");
-  const csrfToken = csrfResponse.data.csrfToken;
-
-  CliUx.ux.action.start(`Signing into HyperPlay API with ${signer.address}:`);
+  const csrfToken = await getCsrfToken(client);
   const siweMessage = new SiweMessage({
     domain: new URL(client.defaults.baseURL as string).host,
     address: signer.address,
     statement: "Sign in with Ethereum to HyperPlay",
     uri: client.defaults.baseURL as string,
     version: "1",
-    chainId: 137,
+    chainId: 1,
     nonce: csrfToken,
-    issuedAt: new Date().toISOString(),
   });
 
   const message = siweMessage.prepareMessage();
   const signature = await signer.signMessage(message);
 
   const formData = qs.stringify({
-    message: JSON.stringify(siweMessage),
+    message: message,
     redirect: 'false',
     signature: signature,
     csrfToken: csrfToken,
@@ -53,11 +81,8 @@ export async function login(client: AxiosInstance, cookieJar: CookieJar, signer:
     json: 'true',
   });
 
-  await client.post("/api/auth/callback/ethereum?", formData, {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-  });
+  await submitAuthCallback(client, formData);
+
   CliUx.ux.action.stop();
 }
 
