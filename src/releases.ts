@@ -89,25 +89,35 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
       if (!fileData) throw new Error(`File data not found for ${url.fileName}`);
 
       const fileType = mime.lookup(fileData) || 'application/octet-stream';
-      const progressIterator = uploadFileS3(
-        fs.createReadStream(fileData),
-        url.uploadId,
-        url.key,
-        url.partUrls,
-        fileType,
-        { client }
-      );
+      const fileStream = fs.createReadStream(fileData);
 
       let location = '';
-      for await (const progressUpdate of progressIterator) {
-        if (typeof progressUpdate === 'number') {
-          CliUx.ux.log(`Upload progress for ${platformKey} - ${url.fileName}: ${progressUpdate}%`);
-        } else {
-          location = progressUpdate;
-        }
-      }
+      try {
+        const progressIterator = uploadFileS3(
+          fileStream,
+          url.uploadId,
+          url.key,
+          url.partUrls,
+          fileType,
+          { client }
+        );
 
-      if (!location) throw new Error('No location returned after upload');
+        for await (const progressUpdate of progressIterator) {
+          if (typeof progressUpdate === 'number') {
+            CliUx.ux.log(`Upload progress for ${platformKey} - ${url.fileName}: ${progressUpdate}%`);
+          } else {
+            location = progressUpdate;
+          }
+        }
+
+        if (!location) throw new Error('No location returned after upload');
+      } catch (error) {
+        // Ensure the stream is properly closed on error
+        if (!fileStream.destroyed) {
+          fileStream.destroy();
+        }
+        throw error;
+      }
 
       const fileStat = await fs.promises.stat(fileData);
       const downloadSize = fileStat.size.toString();
