@@ -90,6 +90,7 @@ export async function uploadRelease(client: AxiosInstance, config: ReleaseConfig
 
       const fileType = mime.lookup(fileData) || 'application/octet-stream';
       const fileStream = fs.createReadStream(fileData);
+      fileStream.setMaxListeners(20);
 
       let location = '';
       try {
